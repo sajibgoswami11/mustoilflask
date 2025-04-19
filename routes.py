@@ -120,52 +120,83 @@ def register_routes(app, db):
                 db.session.add(tag)
             recipe.tags.append(tag)
 
-        # Update ingredients, instructions, and nutrition facts (basic update, can be improved)
+        # Update ingredients
         if 'ingredients' in data:
-            recipe.ingredients = []
-            for ingredient_data in data['ingredients']:
-                ingredient = Ingredient(
-                    id=str(uuid.uuid4()),
-                    name=ingredient_data['name'],
-                    quantity=ingredient_data['quantity'],
-                    recipe_id=id
-                )
-                db.session.add(ingredient)
-                recipe.ingredients.append(ingredient)
+            existing_ingredients = {i.name: i for i in recipe.ingredients}
+            updated_ingredients = data['ingredients']
+            for ingredient_data in updated_ingredients:
+                if ingredient_data['name'] in existing_ingredients:
+                    # Update existing ingredient
+                    ingredient = existing_ingredients.pop(ingredient_data['name'])
+                    ingredient.quantity = ingredient_data['quantity']
+                else:
+                    # Add new ingredient
+                    ingredient = Ingredient(
+                        id=str(uuid.uuid4()),
+                        name=ingredient_data['name'],
+                        quantity=ingredient_data['quantity'],
+                        recipe_id=id
+                    )
+                    db.session.add(ingredient)
+            # Remove ingredients not in updated data
+            for ingredient in existing_ingredients.values():
+                db.session.delete(ingredient)
 
+        # Update instructions
         if 'instructions' in data:
-            recipe.instructions = []
-            for instruction_data in data['instructions']:
-                instruction = Instruction(
-                    id=str(uuid.uuid4()),
-                    stepNumber=instruction_data['stepNumber'],
-                    description=instruction_data['description'],
-                    recipe_id=id
-                )
-                db.session.add(instruction)
-                recipe.instructions.append(instruction)
+            existing_instructions = {i.stepNumber: i for i in recipe.instructions}
+            updated_instructions = data['instructions']
+            for instruction_data in updated_instructions:
+                if instruction_data['stepNumber'] in existing_instructions:
+                    # Update existing instruction
+                    instruction = existing_instructions.pop(instruction_data['stepNumber'])
+                    instruction.description = instruction_data['description']
+                else:
+                    # Add new instruction
+                    instruction = Instruction(
+                        id=str(uuid.uuid4()),
+                        stepNumber=instruction_data['stepNumber'],
+                        description=instruction_data['description'],
+                        recipe_id=id
+                    )
+                    db.session.add(instruction)
+            # Remove instructions not in updated data
+            for instruction in existing_instructions.values():
+                db.session.delete(instruction)
 
+        # Update nutrition facts
         if 'nutrition_facts' in data:
-            recipe.nutrition_facts = []
-            for nutrition_data in data['nutrition_facts']:
-                nutrition = NutritionFact(
-                    id=str(uuid.uuid4()),
-                    name=nutrition_data['name'],
-                    quantity=nutrition_data['quantity'],
-                    recipe_id=id
-                )
-                db.session.add(nutrition)
-                recipe.nutrition_facts.append(nutrition)
-
+            existing_nutrition = {nf.name: nf for nf in recipe.nutrition_facts}
+            updated_nutrition = data['nutrition_facts']
+            for nutrition_data in updated_nutrition:
+                if nutrition_data['name'] in existing_nutrition:
+                    # Update existing nutrition fact
+                    nutrition = existing_nutrition.pop(nutrition_data['name'])
+                    nutrition.quantity = nutrition_data['quantity']
+                else:
+                    # Add new nutrition fact
+                    nutrition = NutritionFact(
+                        id=str(uuid.uuid4()),
+                        name=nutrition_data['name'],
+                        quantity=nutrition_data['quantity'],
+                        recipe_id=id
+                    )
+                    db.session.add(nutrition)
+            # Remove nutrition facts not in updated data
+            for nutrition in existing_nutrition.values():
+                db.session.delete(nutrition)
 
         db.session.commit()
 
+        updated_recipe = Recipe.query.get(id)  # Refresh recipe data
+        db.session.commit()
+
         return jsonify({
-            **recipe.__dict__,
-            'tags': [tag.name for tag in recipe.tags],
-            'ingredients': [{'name': i.name, 'quantity': i.quantity} for i in recipe.ingredients],
-            'instructions': [{'stepNumber': i.stepNumber, 'description': i.description} for i in recipe.instructions],
-            'nutrition_facts': [{'name': nf.name, 'quantity': nf.quantity} for nf in recipe.nutrition_facts],
+            **updated_recipe.__dict__,
+            'tags': [tag.name for tag in updated_recipe.tags],
+            'ingredients': [{'name': i.name, 'quantity': i.quantity} for i in updated_recipe.ingredients],
+            'instructions': [{'stepNumber': i.stepNumber, 'description': i.description} for i in updated_recipe.instructions],
+            'nutrition_facts': [{'name': nf.name, 'quantity': nf.quantity} for nf in updated_recipe.nutrition_facts],
             '_sa_instance_state': None
         })
 
