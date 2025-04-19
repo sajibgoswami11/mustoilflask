@@ -1,4 +1,5 @@
 from flask import Flask, jsonify
+from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from models import db, Recipe, Tag, Ingredient, NutritionFact, Instruction, ShoppingItem
 import uuid
@@ -7,6 +8,8 @@ from seed import seed_database
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///recipes.db'
+
+CORS(app) #Enable CORS for all routes and origins
 db.init_app(app)
 
 # Helper function (example, adjust as needed)
