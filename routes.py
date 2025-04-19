@@ -1,4 +1,4 @@
-from flask import jsonify, current_app
+from flask import jsonify, current_app, request
 from models import db, Recipe, Tag, Ingredient, NutritionFact, Instruction, ShoppingItem
 import uuid
 

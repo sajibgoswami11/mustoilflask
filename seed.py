@@ -2,14 +2,7 @@ import uuid
 from models import Recipe, Tag, Ingredient, NutritionFact, Instruction  # Import models directly
 
 def seed_database(db):  # Pass db as an argument
-    with db.session.begin():        
-        for table in reversed(db.metadata.sorted_tables):
-            db.session.execute(table.delete())
-            print(f"Cleared table: {table.name}")  # Add this line
-
-
-
-        recipes = [
+    recipes = [
             {
                 'id': '1',
                 'title': 'Thai Red Curry Fried Rice',
@@ -72,7 +65,7 @@ def seed_database(db):  # Pass db as an argument
             }
         ]
 
-        detailedRecipe = {
+    detailedRecipe = {
             'id': 'seed-detailed-1',
             'title': 'Thai Red Curry Fried Rice - Detailed',
             'imageUrl': 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
@@ -127,9 +120,10 @@ def seed_database(db):  # Pass db as an argument
             },
         }
 
-        for recipe_data in recipes:
+    with db.session.begin(nested=True):
+        for recipe_data in recipes:  # Iterate through the list of recipes
             recipe = Recipe(
-                id="seed-" + recipe_data['id'],
+                id= recipe_data['id'],
                 title=recipe_data['title'],
                 imageUrl=recipe_data['imageUrl'],
                 prepTime=recipe_data['prepTime'],
@@ -137,58 +131,59 @@ def seed_database(db):  # Pass db as an argument
                 category=recipe_data['category'],
                 difficulty=recipe_data['difficulty'],
             )
+            db.session.add(recipe)  # Add the recipe to the session *before* associating tags
+
             for tag_name in recipe_data.get('tags', []):
                 tag = db.session.query(Tag).filter_by(name=tag_name).first()
                 if not tag:
                     tag = Tag(id=str(uuid.uuid4()), name=tag_name)
                     db.session.add(tag)
                 recipe.tags.append(tag)
-            db.session.add(recipe)
 
-        detailed_recipe = Recipe(
-            id=detailedRecipe['id'],
-            title=detailedRecipe['title'],
-            imageUrl=detailedRecipe['imageUrl'],
-            prepTime=detailedRecipe['prepTime'],
-            cookTime=detailedRecipe['cookTime'],
-            servings=detailedRecipe['servings'],
-            category=detailedRecipe['category'],
-            difficulty=detailedRecipe['difficulty'],
-            description=detailedRecipe.get('description', '')
-        )
-        for tag_name in detailedRecipe.get('tags', []):
-            tag = db.session.query(Tag).filter_by(name=tag_name).first()
-            if not tag:
-                tag = Tag(id=str(uuid.uuid4()), name=tag_name)
-                db.session.add(tag)                
-            detailed_recipe.tags.append(tag)
-
-        for ingredient_data in detailedRecipe['ingredients']:
-            ingredient = Ingredient(
-                id=str(uuid.uuid4()),
-                name=ingredient_data['name'],
-                quantity=ingredient_data['quantity'],
-                recipe=detailed_recipe
+        detailed_recipe = Recipe(  # Create the detailed recipe
+                id=detailedRecipe['id'],
+                title=detailedRecipe['title'],
+                imageUrl=detailedRecipe['imageUrl'],
+                prepTime=detailedRecipe['prepTime'],
+                cookTime=detailedRecipe['cookTime'],
+                servings=detailedRecipe['servings'],
+                category=detailedRecipe['category'],
+                difficulty=detailedRecipe['difficulty'],
+                description=detailedRecipe.get('description', '')
             )
-            db.session.add(ingredient)
+        db.session.add(detailed_recipe)  # Add it to the session *before* associating ingredients, etc.
 
-        nutrition = detailedRecipe.get('nutritionFacts', {})
-        if nutrition:
-            nutrition_fact = NutritionFact(
-                id=str(uuid.uuid4()),
-                name="Nutrition Facts",  # Or a more specific name if available
-                quantity=f"{nutrition.get('calories', 0)} calories, {nutrition.get('protein', 0)}g protein, {nutrition.get('carbs', 0)}g carbs, {nutrition.get('fat', 0)}g fat",
-                recipe=detailed_recipe
-            )
-            db.session.add(nutrition_fact)
+        for tag_name in detailedRecipe.get('tags', []):  # Associate tags
+                tag = db.session.query(Tag).filter_by(name=tag_name).first()
+                if not tag:
+                    tag = Tag(id=str(uuid.uuid4()), name=tag_name)
+                    db.session.add(tag)
+                detailed_recipe.tags.append(tag)
 
-        for instruction_data in detailedRecipe['instructions']:
-            instruction = Instruction(
-                id=str(uuid.uuid4()),
-                stepNumber=instruction_data['stepNumber'],
-                description=instruction_data['description'],
-                recipe=detailed_recipe
-            )
-            db.session.add(instruction)
+        for ingredient_data in detailedRecipe['ingredients']:  # Add ingredients
+                ingredient = Ingredient(
+                    id=str(uuid.uuid4()),
+                    name=ingredient_data['name'],
+                    quantity=ingredient_data['quantity'],
+                    recipe=detailed_recipe
+                )
+                db.session.add(ingredient)
 
-        db.session.add(detailed_recipe)
+        nutrition = detailedRecipe.get('nutritionFacts', {})  # Add nutrition facts
+        if nutrition:  # Check if nutrition data exists
+                nutrition_fact = NutritionFact(
+                    id=str(uuid.uuid4()),
+                    name="Nutrition Facts",  # Or a more specific name if available
+                    quantity=f"{nutrition.get('calories', 0)} calories, {nutrition.get('protein', 0)}g protein, {nutrition.get('carbs', 0)}g carbs, {nutrition.get('fat', 0)}g fat",
+                    recipe=detailed_recipe
+                )
+                db.session.add(nutrition_fact)
+
+        for instruction_data in detailedRecipe['instructions']:  # Add instructions
+                instruction = Instruction(
+                    id=str(uuid.uuid4()),
+                    stepNumber=instruction_data['stepNumber'],
+                    description=instruction_data['description'],
+                    recipe=detailed_recipe
+                )
+                db.session.add(instruction)
